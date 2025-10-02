@@ -1,0 +1,5 @@
+inicio
+leer(a);
+
+
+fin

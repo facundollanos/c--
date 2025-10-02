@@ -36,14 +36,15 @@ typedef enum {
     PARENIZQUIERDO, PARENDERECHO,
     COMA, PUNTOYCOMA,
     ASIGNACION,
+    MENOR, IGUAL,          // 👈 nuevos operadores relacionales
     LEER, ESCRIBIR,
-    SI, SINO, FIN_SI,
+    SI, ENTONCES, SINO, FIN_SI,   // 👈 ahora sí está ENTONCES acá
     MIENTRAS, HACER, FIN_MIENTRAS,
     REPETIR, HASTA,
     INICIO, FIN,
-    FDT, ERRORLEXICO,ENTONCES
+    FDT, ERRORLEXICO
 } TOKEN;
-
+// -----------------------------------------
 // Registro de tabla de símbolos
 typedef struct {
     char identifi[TAMLEX]; // nombre del símbolo
@@ -288,13 +289,27 @@ void Identificador(REG_EXPRESION *presul) {
 void ListaExpresiones(void) {
     TOKEN t;
     REG_EXPRESION reg;
+    char args[512] = "";   // acumulador grande
+    char tmp[64];
+
     Expresion(&reg);
-    Escribir(reg);
+    sprintf(tmp, "%s,%s", Extraer(&reg),
+        (reg.tipo == T_ENTERO ? "Entera" :
+        reg.tipo == T_FLOAT   ? "Real"   :
+                                "Caracter"));
+    strcat(args, tmp);
+
     for (t = ProximoToken(); t == COMA; t = ProximoToken()) {
         Match(COMA);
         Expresion(&reg);
-        Escribir(reg);
+        sprintf(tmp, ", %s,%s", Extraer(&reg),
+            (reg.tipo == T_ENTERO ? "Entera" :
+            reg.tipo == T_FLOAT   ? "Real"   :
+                                    "Caracter"));
+        strcat(args, tmp);
     }
+
+    Generar("Write", args, "", "");
 }
 
 void Expresion(REG_EXPRESION *presul) {
@@ -602,12 +617,35 @@ TOKEN scanner() {
 
 switch (estado) {
     case 2: 
-        if (col != 11) { ungetc(car, in); buffer[i-1] = '\0'; }
-        return ID;
+    if (col != 12) { ungetc(car, in); buffer[i-1] = '\0'; }
+
+    // Palabras reservadas
+    if (strcmp(buffer, "si") == 0) return SI;
+    if (strcmp(buffer, "entonces") == 0) return ENTONCES;   // 👈 este faltaba!
+    if (strcmp(buffer, "sino") == 0) return SINO;
+    if (strcmp(buffer, "fin_si") == 0) return FIN_SI;
+
+    if (strcmp(buffer, "mientras") == 0) return MIENTRAS;
+    if (strcmp(buffer, "hacer") == 0) return HACER;
+    if (strcmp(buffer, "fin_mientras") == 0) return FIN_MIENTRAS;
+
+    if (strcmp(buffer, "repetir") == 0) return REPETIR;
+    if (strcmp(buffer, "hasta") == 0) return HASTA;
+
+    if (strcmp(buffer, "inicio") == 0) return INICIO;
+    if (strcmp(buffer, "fin") == 0) return FIN;
+
+    if (strcmp(buffer, "leer") == 0) return LEER;
+    if (strcmp(buffer, "escribir") == 0) return ESCRIBIR;
+// printf("[DEBUG] buffer='%s' col=%d\n", buffer, col);
+
+    return ID;  // por defecto identificador
+
 
     case 4: 
         if (col != 11) { ungetc(car, in); buffer[i-1] = '\0'; }
         if (buffer[0] == '\'' && buffer[2] == '\'' && buffer[3] == '\0')
+        
             return CONSTANTE_CARACTER;   // ej: 'a'
         else if (strchr(buffer, '.') != NULL)
             return CONSTANTE_REAL;       // ej: 3.14

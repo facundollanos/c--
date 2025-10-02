@@ -3,8 +3,8 @@ inicio
     leer(y);
 
     si (x < y) entonces
-        escribir('m');
+        escribir(y);
     sino
-        escribir(3.14);
+        escribir(x);
     fin_si;
 fin
