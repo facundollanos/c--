@@ -1,6 +1,6 @@
 inicio
-  leer(a);
-  leer(b);
+a:=3+4;
+b:=5-6;
   c := a + b;
-  escribir(c);
+  leer(c);
 fin

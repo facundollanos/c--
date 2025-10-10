@@ -4,8 +4,8 @@
 
 /* Compilador del Lenguaje Micro (Fischer) */
 
-#define NUMESTADOS 15
-#define NUMCOLS 13
+#define NUMESTADOS 20
+#define NUMCOLS 15
 #define TAMLEX (32+1)
 #define TAMNOM (20+1)
 
@@ -13,9 +13,8 @@ FILE *in;
 
 typedef enum {
     INICIO, FIN, LEER, ESCRIBIR, ID, CONSTANTE, PARENIZQUIERDO, PARENDERECHO,
-    PUNTOYCOMA, COMA, ASIGNACION, SUMA, RESTA, FDT, ERRORLEXICO,CONSTANTE_ENTERO,
-CONSTANTE_REAL,
-CONSTANTE_CARACTER,
+    PUNTOYCOMA, COMA, ASIGNACION, SUMA, RESTA, FDT, ERRORLEXICO, CONSTANTE_ENTERO,
+    CONSTANTE_REAL, CONSTANTE_CARACTER, MIENTRAS, SI, ENTONCES
 
 } TOKEN;
 
@@ -38,8 +37,11 @@ RegTS TS[1000] = {
 typedef struct {
     TOKEN clase;
     char nombre[TAMLEX];
-    int valor;
-    TipoDato tipo; 
+    union {
+        int valorEntero;
+        float valorReal;
+        char valorChar;
+    } valor;
 } REG_EXPRESION;
 
 char buffer[TAMLEX];
@@ -61,6 +63,8 @@ void Expresion(REG_EXPRESION *presul);
 void Primaria(REG_EXPRESION *presul);
 void OperadorAditivo(char *presul);
 REG_EXPRESION ProcesarCte(void);
+REG_EXPRESION ProcesarReal(void);
+REG_EXPRESION ProcesarChar(void);
 REG_EXPRESION ProcesarId(void);
 char *ProcesarOp(void);
 void Leer(REG_EXPRESION in);
@@ -216,9 +220,17 @@ void Primaria(REG_EXPRESION *presul) {
         case ID:
             Identificador(presul);
             break;
-        case CONSTANTE:
-            Match(CONSTANTE);
+        case CONSTANTE_ENTERO:
+            Match(CONSTANTE_ENTERO);
             *presul = ProcesarCte();
+            break;
+            case CONSTANTE_REAL:
+            Match(CONSTANTE_REAL);
+            *presul = ProcesarReal();
+            break;
+            case CONSTANTE_CARACTER:
+            Match(CONSTANTE_CARACTER);
+            *presul = ProcesarChar();
             break;
         case PARENIZQUIERDO:
             Match(PARENIZQUIERDO);
@@ -228,7 +240,6 @@ void Primaria(REG_EXPRESION *presul) {
         default: ErrorSintactico(); break;
     }
 }
-
 void OperadorAditivo(char *presul) {
     TOKEN t = ProximoToken();
     if (t == SUMA || t == RESTA) {
@@ -245,48 +256,80 @@ REG_EXPRESION ProcesarCte(void) {
     REG_EXPRESION reg;
     reg.clase = CONSTANTE;
     strcpy(reg.nombre, buffer);
-    sscanf(buffer, "%d", &reg.valor);
+    sscanf(buffer, "%d", &reg.valor.valorEntero);
     return reg;
 }
 
+
+
+/////FUNCION MIA
+REG_EXPRESION ProcesarChar(void) {
+    REG_EXPRESION reg;
+    reg.clase = CONSTANTE_CARACTER;
+    strcpy(reg.nombre, buffer);
+    reg.valor.valorChar = buffer[0]; // el buffer tiene solo 'c'
+    return reg;
+}
+
+//////FUNCION MIA
+REG_EXPRESION ProcesarReal(void) {
+    REG_EXPRESION reg;
+    reg.clase = CONSTANTE_REAL;
+    strcpy(reg.nombre, buffer);
+    sscanf(buffer, "%f", &reg.valor.valorReal);
+    return reg;
+}
+
+
+
 REG_EXPRESION ProcesarId(void) {
     REG_EXPRESION reg;
-    Chequear(buffer,reg.tipo);
+    Chequear(buffer, T_ENTERO);
     reg.clase = ID;
     strcpy(reg.nombre, buffer);
-    reg.valor = 0;
+    reg.valor.valorEntero = 0;
+    return reg;
+}
+
+/////////// MIS FUNCIONES
+REG_EXPRESION ProcesarFlotante(void) {
+    REG_EXPRESION reg;
+    reg.clase = T_FLOAT;
+    strcpy(reg.nombre, buffer);
+    sscanf(buffer, "%f", &reg.valor.valorReal);
     return reg;
 }
 
 char *ProcesarOp(void) { return buffer; }
 
-void Leer(REG_EXPRESION in) {
-    switch (in.tipo) {
-        case T_ENTERO:
-            Generar("Read", in.nombre, "Entera", "");
-            break;
-        case T_FLOAT:
-            Generar("Read", in.nombre, "Real", "");
-            break;
-        case T_CHAR:
-            Generar("Read", in.nombre, "Caracter", "");
-            break;
+void Escribir(REG_EXPRESION out) {
+    char tipo[20];
+
+    switch (out.clase) {
+        case CONSTANTE:      strcpy(tipo, "Entera"); break;
+        case CONSTANTE_REAL: strcpy(tipo, "Real"); break;
+        case CONSTANTE_CARACTER: strcpy(tipo, "Caracter"); break;
+        case ID:             strcpy(tipo, "Entera"); break; // o buscar tipo en tabla
+        default:             strcpy(tipo, "Desconocido"); break;
     }
+
+    Generar("Write", Extraer(&out), tipo, "");
 }
 
-void Escribir(REG_EXPRESION out) {
-    switch (out.tipo) {
-        case T_ENTERO:
-            Generar("Write", Extraer(&out), "Entera", "");
-            break;
-        case T_FLOAT:
-            Generar("Write", Extraer(&out), "Real", "");
-            break;
-        case T_CHAR:
-            Generar("Write", Extraer(&out), "Caracter", "");
-            break;
+void Leer(REG_EXPRESION in) {
+    char tipo[16];
+
+    switch (in.clase) {
+        case ID:           strcpy(tipo, "Entera"); break; // o según la tabla de símbolos
+        case CONSTANTE:     strcpy(tipo, "Entera"); break;
+        case CONSTANTE_REAL: strcpy(tipo, "Real"); break;
+        case CONSTANTE_CARACTER: strcpy(tipo, "Caracter"); break;
+        default:             strcpy(tipo, "Desconocido"); break;
     }
+
+    Generar("Read", in.nombre, tipo, "");
 }
+
 
 
 REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2) {
@@ -299,13 +342,13 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2) {
     else strcpy(cadOp, "Sumar");
     sprintf(cadNum, "%u", numTemp++);
     strcat(cadTemp, cadNum);
-    if (e1.clase == ID) Chequear(Extraer(&e1));
-    if (e2.clase == ID) Chequear(Extraer(&e2));
-    Chequear(cadTemp);
+    if (e1.clase == ID) Chequear(Extraer(&e1), T_ENTERO);
+    if (e2.clase == ID) Chequear(Extraer(&e2), T_ENTERO);
+    Chequear(cadTemp, T_ENTERO);
     Generar(cadOp, Extraer(&e1), Extraer(&e2), cadTemp);
     strcpy(reg.nombre, cadTemp);
     reg.clase = ID;
-    reg.valor = 0;
+    reg.valor.valorEntero = 0;
     return reg;
 }
 
@@ -363,7 +406,7 @@ void Colocar(char *id, RegTS *TS) {
 void Chequear(char *s, TipoDato tipo) {
     TOKEN t;
     if (!Buscar(s, TS, &t)) {
-        Colocar(s, TS, tipo);
+        Colocar(s, TS);
         if (tipo == T_ENTERO)
             Generar("Declara", s, "Entera", "");
         else if (tipo == T_FLOAT)
@@ -382,23 +425,29 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der) {
 /* ------------------ Scanner ------------------ */
 
 TOKEN scanner() {
-    int tabla[NUMESTADOS][NUMCOLS] = {
-        { 1,3,5,6,7,8,9,10,11,14,13,0,14 },
-        { 1,1,2,2,2,2,2,2,2,2,2,2,2 },
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        { 4,3,4,4,4,4,4,4,4,4,4,4,4 },
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,12,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14},
-        {14,14,14,14,14,14,14,14,14,14,14,14,14}
-    };
+int tabla[NUMESTADOS][NUMCOLS] = {
+/* a  d  +  -  (  )  ,  ;  :  = EOF sp  .  '  otro */
+  { 1, 3, 5, 6, 7, 8, 9,10,11,14,13, 0,15,17,14 }, // 0 inicio
+  { 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, // 1 letras → ID
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 2 fin ID
+  { 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,15, 4, 4 }, // 3 dígitos ('.'→15)
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 4 fin entero
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 5 '+'
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 6 '-'
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 7 '('
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 8 ')'
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, // 9 ','
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, //10 ';'
+  {14,14,14,14,14,14,14,14,14,12,14,14,14,14,14}, //11 ':'
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, //12 ':='
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, //13 FDT
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}, //14 error
+  {14,16,14,14,14,14,14,14,14,14,14,14,14,14,14}, //15 vio '.' espera dígito
+  {14,16,14,14,14,14,14,14,14,14,14,14,14,14,14}, //16 parte fraccionaria (float)
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,19,14}, //17 leí `'`, espero carácter
+  {19,19,19,19,19,19,19,19,19,19,19,19,19,19,19}, //18 leí carácter, espero `'` cierre
+  {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}  //19 fin char (se maneja en switch)
+};
 
     int car, col, estado = 0, i = 0;
     do {
@@ -409,46 +458,54 @@ TOKEN scanner() {
     } while (!estadoFinal(estado) && !(estado == 14));
     buffer[i] = '\0';
 
-    switch (estado) {
-        case 2: if (col != 11) { ungetc(car,in); buffer[i-1]='\0'; } return ID;
-        case 4: 
-    if (col != 11) { 
-        ungetc(car, in); 
-        buffer[i-1] = '\0'; 
+
+
+/* ... inside scanner() after the do-while loop ... */
+
+switch (estado) {
+    case 2:
+    case 4:
+case 16: // CONSTANTE_REAL (número con parte decimal)
+    if (col != 11 && car != EOF) {
+        ungetc(car, in);
+        buffer[i-1] = '\0';
     }
 
-    // 🔸 Constante carácter: debe ser exactamente 'x'
-    if (buffer[0] == '\'' && buffer[2] == '\'' && buffer[3] == '\0') {
+    // Si el número termina con un punto, es un error léxico (ej: 123.)
+    size_t len = strlen(buffer);
+    if (len > 0 && buffer[len - 1] == '.')
+        return ERRORLEXICO;
+
+    // Si no termina en punto, es un número flotante válido
+    return CONSTANTE_REAL;
+
+    case 19: // 👈 CONSTANTE_CARACTER ends here
+        // The token is now in buffer: `'x'`
         return CONSTANTE_CARACTER;
-    }
 
-    // 🔸 Constante real: contiene un punto
-    if (strchr(buffer, '.') != NULL) {
-        // pero si termina en '.', es inválido
-        if (buffer[strlen(buffer) - 1] == '.')
-            return ERRORLEXICO;
-        return CONSTANTE_REAL;
-    }
+    case 5:  return SUMA;
+    case 6:  return RESTA;
+    case 7:  return PARENIZQUIERDO;
+    case 8:  return PARENDERECHO;
+    case 9:  return COMA;
+    case 10: return PUNTOYCOMA;
+    case 12: return ASIGNACION;
+    case 13: return FDT;
+    case 14: return ERRORLEXICO;
+    default: return ERRORLEXICO;
+}
 
-    // 🔸 Caso por defecto: entero
-    return CONSTANTE_ENTERO;
 
-        case 5: return SUMA;
-        case 6: return RESTA;
-        case 7: return PARENIZQUIERDO;
-        case 8: return PARENDERECHO;
-        case 9: return COMA;
-        case 10: return PUNTOYCOMA;
-        case 12: return ASIGNACION;
-        case 13: return FDT;
-        case 14: return ERRORLEXICO;
-        default: return ERRORLEXICO;
-    }
+
+
 }
 
 int estadoFinal(int e) {
-    if (e == 0 || e == 1 || e == 3 || e == 11 || e == 14) return 0;
-    return 1;
+    // estados NO finales (se sigue leyendo)
+    if (e == 0 || e == 1 || e == 3 || e == 11 || e == 15 || e == 17 || e == 18)
+        return 0;
+    // todos los demás son finales
+    return 1; // Includes states 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 19
 }
 
 int columna(int c) {
@@ -464,5 +521,8 @@ int columna(int c) {
     if (c == '=') return 9;
     if (c == EOF) return 10;
     if (isspace(c)) return 11;
-    return 12;
+    if (c == '.') return 12;
+    if (c == '\'') return 13;
+    if (c == '<' || c == '>') return 14;
+    return 14; // "otro"
 }
