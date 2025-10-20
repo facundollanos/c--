@@ -1,10 +1,9 @@
 inicio
-    leer(x);
-    leer(y);
+z:=3;
+d:=5;
 
-    si (x < y) entonces
-        escribir(y);
-    sino
-        escribir(x);
-    fin_si;
+si (a < b) entonces(
+    f:='c';
+)
+    cortarCondicional;
 fin

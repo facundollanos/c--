@@ -303,6 +303,8 @@ void Generar(char *co, char *a, char *b, char *c) {
     printf("%s %s,%s,%s\n", co, a, b, c);
 }
 
+
+
 char *Extraer(REG_EXPRESION *preg) { return preg->nombre; }
 
 int Buscar(char *id, RegTS *TS, TOKEN *t) {
@@ -317,6 +319,9 @@ int Buscar(char *id, RegTS *TS, TOKEN *t) {
     return 0;
 }
 
+
+
+
 void Colocar(char *id, RegTS *TS) {
     int i = 4;
     while (strcmp("$", TS[i].identifi)) i++;
@@ -327,6 +332,8 @@ void Colocar(char *id, RegTS *TS) {
         TS[i].t = 99;
     }
 }
+
+
 
 void Chequear(char *s) {
     TOKEN t;
