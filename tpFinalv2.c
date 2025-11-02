@@ -163,7 +163,7 @@ void Objetivo(void) {
 
 void Programa(void) {
     Comenzar();
-    Match(INICIO);
+     Match(INICIO);
     ListaSentencias();
     Match(FIN);
 }
@@ -227,7 +227,7 @@ case SI:
 
     Match(PARENDERECHO);
     Match(ENTONCES);
-    Sentencia();
+    ListaSentencias();
     Match(FIN_SI);
     Match(PUNTOYCOMA);
     break;
@@ -241,7 +241,7 @@ case MIENTRAS:
 
     Match(PARENDERECHO);
     Match(HACER);
-    Sentencia();
+    ListaSentencias();
     Match(FIN_MIENTRAS);
     Match(PUNTOYCOMA);
     break;
@@ -255,7 +255,7 @@ case REPETIR:
 
     Match(PARENDERECHO);
     Match(HACER);
-    Sentencia();
+    ListaSentencias();
     Match(REPETIR_FIN);
     Match(PUNTOYCOMA);
     break;
@@ -356,7 +356,7 @@ REG_EXPRESION ProcesarId(void) {
 
     reg.clase = ID;
     strcpy(reg.nombre, buffer);
-    // reg.valor = 0;
+    reg.tipo = RegExAux.tipo;
     return reg;
 }
 
@@ -541,7 +541,6 @@ void Leer(REG_EXPRESION in) {
     char tipo[16];
 
     switch (RegExAux.tipo) {
-        case ID:           strcpy(tipo, "Entera"); break; // o según la tabla de símbolos
         case T_ENTERO:     strcpy(tipo, "Entera"); break;
         case T_FLOAT:      strcpy(tipo, "Real"); break;
         case T_CHAR:      strcpy(tipo, "Caracter"); break;
